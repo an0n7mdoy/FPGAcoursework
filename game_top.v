@@ -98,10 +98,23 @@ function signed [8:0] shape;
     end
 endfunction
 
-wire signed [7:0] sel_x = SWAP_XY ? acl_y : acl_x;
-wire signed [7:0] sel_y = SWAP_XY ? acl_x : acl_y;
-wire signed [8:0] ext_x = sel_x;
-wire signed [8:0] ext_y = sel_y;
+// Calibration: hold the board flat and still, press BTNU to store the zero point
+reg signed [7:0] off_x = 8'sd0, off_y = 8'sd0;
+always @(posedge clk) begin
+    if (!rst) begin
+        off_x <= 8'sd0;
+        off_y <= 8'sd0;
+    end else if (btn[1]) begin          // btn[1] = BTNU
+        off_x <= acl_x;
+        off_y <= acl_y;
+    end
+end
+
+wire signed [8:0] cal_x = acl_x - off_x;
+wire signed [8:0] cal_y = acl_y - off_y;
+wire signed [8:0] ext_x = SWAP_XY ? cal_y : cal_x;
+wire signed [8:0] ext_y = SWAP_XY ? cal_x : cal_y;
+
 wire signed [8:0] tilt_x = INVERT_X ? -ext_x : ext_x;
 wire signed [8:0] tilt_y = INVERT_Y ? -ext_y : ext_y;
 
