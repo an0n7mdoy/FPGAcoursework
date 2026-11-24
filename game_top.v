@@ -24,17 +24,17 @@ module game_top #(
     input player,
     input [4:0] btn,
     input [10:0] twopos_x, twopos_y,
+    output [10:0] blkpos_x, blkpos_y,
+    output [3:0] pix_r,
+    output [3:0] pix_g,
+    output [3:0] pix_b,
+    output hsync,
+    output vsync,
     // accelerometer SPI
     input  ACL_MISO,
     output ACL_MOSI,
     output ACL_SCLK,
-    output ACL_CSN,
-    output [3:0] pix_r,
-    output [3:0] pix_g,
-    output [3:0] pix_b,
-    output [10:0] blkpos_x, blkpos_y,
-    output hsync,
-    output vsync
+    output ACL_CSN
     );
 
 //internal wires

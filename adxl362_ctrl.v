@@ -76,17 +76,6 @@ always @(posedge clk) begin
                 end
             end
             //----------------------------------------------------------
-            S_GAP: begin                                // CS high between transfers
-                csn  <= 1;
-                sclk <= 0;
-                wait_cnt <= wait_cnt + 1;
-                if (wait_cnt[15:0] == 16'hFFFF) begin   // ~0.65 ms
-                    tx_sh <= {8'h0B, 8'h08, 8'h00, 8'h00}; // read from XDATA, 2 bytes
-                    nbits <= 6'd32;
-                    state <= S_START;
-                end
-            end
-            //----------------------------------------------------------
             S_START: begin
                 csn       <= 0;
                 sclk      <= 0;
@@ -129,6 +118,17 @@ always @(posedge clk) begin
                 end
                 wait_cnt <= 0;
                 state    <= S_GAP;
+            end
+            //----------------------------------------------------------
+            S_GAP: begin                                // CS high between transfers
+                csn  <= 1;
+                sclk <= 0;
+                wait_cnt <= wait_cnt + 1;
+                if (wait_cnt[15:0] == 16'hFFFF) begin   // ~0.65 ms
+                    tx_sh <= {8'h0B, 8'h08, 8'h00, 8'h00}; // read from XDATA, 2 bytes
+                    nbits <= 6'd32;
+                    state <= S_START;
+                end
             end
             default: state <= S_POWERUP;
         endcase
