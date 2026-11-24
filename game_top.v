@@ -1,36 +1,38 @@
 `timescale 1ns / 1ps
 //////////////////////////////////////////////////////////////////////////////////
-// Company: 
-// Engineer: 
-// 
-// Create Date: 20.04.2021 19:58:02
-// Design Name: 
 // Module Name: game_top
-// Project Name: 
-// Target Devices: 
-// Tool Versions: 
-// Description: 
-// 
-// Dependencies: 
-// 
-// Revision:
-// Revision 0.01 - File Created
-// Additional Comments:
-// 
+// Description: Marble movement driven by the on-board ADXL362 accelerometer.
+//   - 24-bit signed fixed point, 8 fractional bits (1.0 px = 256)
+//   - v += a ; pos += v   every 60 Hz tick
+//   - friction (~0.94 -> 15/16) when there is no tilt on an axis
+//   - speed limit 3.2 px/frame, diagonal tilt scaled by 181/256
+//   - BTN[0] (centre) still respawns the block
+//   No dashes, no tile friction, no collisions (screen edges still clamp).
+//
+//   Assumes clk = 100 MHz. For another clock change TICK_DIV = clk_hz / 60.
 //////////////////////////////////////////////////////////////////////////////////
 
-
-module game_top(
+module game_top #(
+    parameter integer TICK_DIV = 1666667,   // 100 MHz / 60 Hz
+    parameter         INVERT_X = 1,         // flip tilt direction if it feels backwards
+    parameter         INVERT_Y = 0,
+    parameter         SWAP_XY  = 1          // swap sensor axes if board orientation differs
+)(
     input pixclk,
     input clk,
-    input rst,
+    input rst,                  // active low
     input player,
     input [4:0] btn,
     input [10:0] twopos_x, twopos_y,
+    // accelerometer SPI
+    input  ACL_MISO,
+    output ACL_MOSI,
+    output ACL_SCLK,
+    output ACL_CSN,
     output [3:0] pix_r,
     output [3:0] pix_g,
     output [3:0] pix_b,
-    output reg [10:0] blkpos_x, blkpos_y,
+    output [10:0] blkpos_x, blkpos_y,
     output hsync,
     output vsync
     );
@@ -42,62 +44,138 @@ wire [3:0] draw_b;
 wire [10:0] curr_x;
 wire [10:0] curr_y;
 
-//wires for the block
-reg [20:0] clk_div;
-reg game_clk;
+//------------------------------------------------------------------
+// Accelerometer
+//------------------------------------------------------------------
+wire signed [7:0] acl_x, acl_y;
 
-//game clock generation
-always@(posedge clk) begin
-    if(!rst) begin
-        clk_div <= 0;
-        game_clk <= 0;
+adxl362_ctrl #(.CLK_DIV(25)) acl_inst (
+    .clk(clk),
+    .rst_n(rst),
+    .miso(ACL_MISO),
+    .mosi(ACL_MOSI),
+    .sclk(ACL_SCLK),
+    .csn(ACL_CSN),
+    .ax(acl_x),
+    .ay(acl_y)
+);
+
+//------------------------------------------------------------------
+// 60 Hz physics tick (enable pulse in the clk domain)
+//------------------------------------------------------------------
+reg [20:0] tick_cnt;
+reg        tick;
+
+always @(posedge clk) begin
+    if (!rst) begin
+        tick_cnt <= 0;
+        tick     <= 0;
+    end else if (tick_cnt == TICK_DIV-1) begin
+        tick_cnt <= 0;
+        tick     <= 1;
     end else begin
-        if (clk_div == 21'd1666666 ) begin
-            clk_div <= 0;
-            game_clk <= !game_clk;
-        end else begin
-            clk_div <= clk_div + 1;
-        end
+        tick_cnt <= tick_cnt + 1;
+        tick     <= 0;
     end
 end
 
-//block movement
-always@(posedge game_clk) begin
-    if(btn[0]) begin
-        blkpos_x <= player ? 11'd1290 : 11'd100;   // P2 starts right, P1 starts left
-        blkpos_y <= 11'd400;
-    end else begin
-        case(btn[4:1])
-            4'b0010: begin//left
-                if(blkpos_x > 11'd10) begin
-                   blkpos_x <= blkpos_x - 4;
-                end
-            end
-            4'b0100: begin//right
-                if(blkpos_x < (11'd1430-11'd50)) begin
-                   blkpos_x <= blkpos_x + 4;
-                end
-            end
-            
-            4'b1000: begin//up
-                if(blkpos_y < (11'd890-11'd50)) begin
-                   blkpos_y <= blkpos_y + 4;
-                end
-            end
-            4'b0001: begin//down
-                if(blkpos_y > 11'd10) begin
-                   blkpos_y <= blkpos_y - 4;
-                end
-            end
-            default: begin
-                blkpos_x <= blkpos_x;
-                blkpos_y <= blkpos_y; 
-            end
-        endcase
+//------------------------------------------------------------------
+// Tilt -> acceleration
+//   deadzone 3 counts (~3 deg), saturates at 48 counts (~48 deg).
+//   2 fixed-point units per count -> max 90/256 = 0.35 px/frame^2
+//------------------------------------------------------------------
+localparam signed [8:0] DEADZONE = 9'sd3;
+localparam signed [8:0] TILT_MAX = 9'sd48;
+
+function signed [8:0] shape;
+    input signed [8:0] t;
+    begin
+        if      (t >  TILT_MAX) shape =   TILT_MAX - DEADZONE;
+        else if (t >  DEADZONE) shape =   t - DEADZONE;
+        else if (t < -TILT_MAX) shape = -(TILT_MAX - DEADZONE);
+        else if (t < -DEADZONE) shape =   t + DEADZONE;
+        else                    shape = 9'sd0;
+    end
+endfunction
+
+wire signed [7:0] sel_x = SWAP_XY ? acl_y : acl_x;
+wire signed [7:0] sel_y = SWAP_XY ? acl_x : acl_y;
+wire signed [8:0] ext_x = sel_x;
+wire signed [8:0] ext_y = sel_y;
+wire signed [8:0] tilt_x = INVERT_X ? -ext_x : ext_x;
+wire signed [8:0] tilt_y = INVERT_Y ? -ext_y : ext_y;
+
+wire signed [8:0] shp_x = shape(tilt_x);
+wire signed [8:0] shp_y = shape(tilt_y);
+wire act_x = (shp_x != 0);
+wire act_y = (shp_y != 0);
+wire diag  = act_x & act_y;
+
+wire signed [10:0] acc_x_lin = shp_x <<< 1;
+wire signed [10:0] acc_y_lin = shp_y <<< 1;
+wire signed [22:0] acc_x_dg  = acc_x_lin * 12'sd181;
+wire signed [22:0] acc_y_dg  = acc_y_lin * 12'sd181;
+
+wire signed [10:0] acc_x = diag ? (acc_x_dg >>> 8) : acc_x_lin;
+wire signed [10:0] acc_y = diag ? (acc_y_dg >>> 8) : acc_y_lin;
+
+//------------------------------------------------------------------
+// Physics constants (1.0 px = 256)
+//------------------------------------------------------------------
+localparam signed [23:0] VMAX   = 24'sd819;     // 3.2 px/frame
+localparam signed [23:0] VMAX_D = 24'sd579;     // 3.2 * 181/256 per axis on diagonals
+localparam signed [23:0] X_MIN  = 24'sd2560;    // 10 px
+localparam signed [23:0] X_MAX  = 24'sd353280;  // 1380 px
+localparam signed [23:0] Y_MIN  = 24'sd2560;    // 10 px
+localparam signed [23:0] Y_MAX  = 24'sd215040;  // 840 px
+
+// friction ~0.94 (15/16 = 0.9375); snap to zero at very low speed
+function signed [23:0] fric;
+    input signed [23:0] v;
+    begin
+        if (v < 24'sd16 && v > -24'sd16) fric = 24'sd0;
+        else                             fric = v - (v >>> 4);
+    end
+endfunction
+
+reg signed [23:0] pos_x, pos_y;
+reg signed [23:0] vel_x, vel_y;
+reg signed [23:0] nvx, nvy, npx, npy, vlim;
+
+always @(posedge clk) begin
+    if (!rst || btn[0]) begin
+        pos_x <= player ? 24'sd330240 : 24'sd25600;   // 1290 / 100 px
+        pos_y <= 24'sd102400;                         // 400 px
+        vel_x <= 24'sd0;
+        vel_y <= 24'sd0;
+    end else if (tick) begin
+        vlim = diag ? VMAX_D : VMAX;
+
+        // ---- X axis ----
+        nvx = act_x ? (vel_x + acc_x) : fric(vel_x);
+        if      (nvx >  vlim) nvx =  vlim;
+        else if (nvx < -vlim) nvx = -vlim;
+        npx = pos_x + nvx;
+        if      (npx < X_MIN) begin npx = X_MIN; nvx = 24'sd0; end
+        else if (npx > X_MAX) begin npx = X_MAX; nvx = 24'sd0; end
+
+        // ---- Y axis ----
+        nvy = act_y ? (vel_y + acc_y) : fric(vel_y);
+        if      (nvy >  vlim) nvy =  vlim;
+        else if (nvy < -vlim) nvy = -vlim;
+        npy = pos_y + nvy;
+        if      (npy < Y_MIN) begin npy = Y_MIN; nvy = 24'sd0; end
+        else if (npy > Y_MAX) begin npy = Y_MAX; nvy = 24'sd0; end
+
+        vel_x <= nvx;  vel_y <= nvy;
+        pos_x <= npx;  pos_y <= npy;
     end
 end
-    
-             
+
+// integer part of the position goes to the renderer
+assign blkpos_x = pos_x[18:8];
+assign blkpos_y = pos_y[18:8];
+
 drawcon drawcon_inst(
     .player(player),
     .blkpos_x(blkpos_x),
@@ -127,4 +205,3 @@ vga vga_inst(
 );
 
 endmodule
-

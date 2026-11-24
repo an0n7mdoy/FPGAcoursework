@@ -20,7 +20,11 @@ module top (
     output wire        ETH_TXEN,
     output wire [1:0]  ETH_TXD,
     input  wire        ETH_CRSDV,
-    input  wire [1:0]  ETH_RXD
+    input  wire [1:0]  ETH_RXD,
+    input  ACL_MISO,
+    output ACL_MOSI,
+    output ACL_SCLK,
+    output ACL_CSN
 );
     // Clocking Wizard IP: clk_out1 = 50 MHz, clk_out2 = 50 MHz at 45 deg (to the PHY)
     wire clk, locked, pixclk;
@@ -111,7 +115,11 @@ module top (
         .pix_b(pix_b),
         .blkpos_x(blkpos[21:11]),
         .blkpos_y(blkpos[10:0]),
-        .hsync(hsync), .vsync(vsync)
+        .hsync(hsync), .vsync(vsync),
+        .ACL_MISO(ACL_MISO),
+        .ACL_MOSI(ACL_MOSI),
+        .ACL_SCLK(ACL_SCLK),
+        .ACL_CSN(ACL_CSN)
     );
     
     seg7_hex display (
