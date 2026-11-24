@@ -135,8 +135,8 @@ wire signed [10:0] acc_y = diag ? (acc_y_dg >>> 8) : acc_y_lin;
 //------------------------------------------------------------------
 // Physics constants (1.0 px = 256)
 //------------------------------------------------------------------
-localparam signed [23:0] VMAX   = 24'sd819;     // 3.2 px/frame
-localparam signed [23:0] VMAX_D = 24'sd579;     // 3.2 * 181/256 per axis on diagonals
+//localparam signed [23:0] VMAX   = 24'sd819;     // 3.2 px/frame
+//localparam signed [23:0] VMAX_D = 24'sd579;     // 3.2 * 181/256 per axis on diagonals
 localparam signed [23:0] X_MIN  = 24'sd2560;    // 10 px
 localparam signed [23:0] X_MAX  = 24'sd353280;  // 1380 px
 localparam signed [23:0] Y_MIN  = 24'sd2560;    // 10 px
@@ -153,7 +153,7 @@ endfunction
 
 reg signed [23:0] pos_x, pos_y;
 reg signed [23:0] vel_x, vel_y;
-reg signed [23:0] nvx, nvy, npx, npy, vlim;
+reg signed [23:0] nvx, nvy, npx, npy;
 
 always @(posedge clk) begin
     if (!rst || btn[0]) begin
@@ -162,20 +162,20 @@ always @(posedge clk) begin
         vel_x <= 24'sd0;
         vel_y <= 24'sd0;
     end else if (tick) begin
-        vlim = diag ? VMAX_D : VMAX;
+//        vlim = diag ? VMAX_D : VMAX;
 
         // ---- X axis ----
         nvx = act_x ? (vel_x + acc_x) : fric(vel_x);
-        if      (nvx >  vlim) nvx =  vlim;
-        else if (nvx < -vlim) nvx = -vlim;
+//        if      (nvx >  vlim) nvx =  vlim;
+//        else if (nvx < -vlim) nvx = -vlim;
         npx = pos_x + nvx;
         if      (npx < X_MIN) begin npx = X_MIN; nvx = 24'sd0; end
         else if (npx > X_MAX) begin npx = X_MAX; nvx = 24'sd0; end
 
         // ---- Y axis ----
         nvy = act_y ? (vel_y + acc_y) : fric(vel_y);
-        if      (nvy >  vlim) nvy =  vlim;
-        else if (nvy < -vlim) nvy = -vlim;
+//        if      (nvy >  vlim) nvy =  vlim;
+//        else if (nvy < -vlim) nvy = -vlim;
         npy = pos_y + nvy;
         if      (npy < Y_MIN) begin npy = Y_MIN; nvy = 24'sd0; end
         else if (npy > Y_MAX) begin npy = Y_MAX; nvy = 24'sd0; end
@@ -201,7 +201,6 @@ drawcon drawcon_inst(
     .curr_x(curr_x),
     .curr_y(curr_y)
 );
-
 vga vga_inst(
     .clk(pixclk),
     .rst(rst),
