@@ -5,7 +5,7 @@
 //   - 24-bit signed fixed point, 8 fractional bits (1.0 px = 256)
 //   - v += a ; pos += v   every 60 Hz tick
 //   - friction (~0.94 -> 15/16) when there is no tilt on an axis
-//   - speed limit 3.2 px/frame, diagonal tilt scaled by 181/256
+//   - NO speed limit 3.2 px/frame, diagonal tilt scaled by 181/256
 //   - BTN[0] (centre) still respawns the block
 //   No dashes, no tile friction, no collisions (screen edges still clamp).
 //
@@ -129,8 +129,8 @@ wire signed [10:0] acc_y_lin = shp_y <<< 1;
 wire signed [22:0] acc_x_dg  = acc_x_lin * 12'sd181;
 wire signed [22:0] acc_y_dg  = acc_y_lin * 12'sd181;
 
-reg signed [10:0] acc_x = diag ? (acc_x_dg >>> 8) : acc_x_lin;
-reg signed [10:0] acc_y = diag ? (acc_y_dg >>> 8) : acc_y_lin;
+wire signed [10:0] acc_x = diag ? (acc_x_dg >>> 8) : acc_x_lin;
+wire signed [10:0] acc_y = diag ? (acc_y_dg >>> 8) : acc_y_lin;
 
 //------------------------------------------------------------------
 // Physics constants (1.0 px = 256)
@@ -158,6 +158,7 @@ wire signed [11:0] dx  = $signed({1'b0, twopos_x}) - $signed({1'b0, blkpos_x});
 wire signed [11:0] dy  = $signed({1'b0, twopos_y}) - $signed({1'b0, blkpos_y});
 localparam signed [23:0] R_SQ = 24'sd2304; //48^2
 wire signed [23:0] d2  = dx*dx + dy*dy;
+wire hit = (d2 <= R_SQ);
 always @(posedge clk) begin
     if (!rst || btn[0]) begin
         pos_x <= player ? 24'sd330240 : 24'sd25600;   // 1290 / 100 px
@@ -172,9 +173,9 @@ always @(posedge clk) begin
         nvx = act_x ? (vel_x + acc_x) : fric(vel_x);
 //        if      (nvx >  vlim) nvx =  vlim;
 //        else if (nvx < -vlim) nvx = -vlim;
+        if (hit && ((dx > 0 && nvx > 0) || (dx < 0 && nvx < 0))) begin nvx = -(nvx >>> 1); end
         npx = pos_x + nvx;
-      
-        if (d2 <= R_SQ) begin vel_x = -vel_x;  acc_x = -acc_x; end
+
         if      (npx < X_MIN) begin npx = X_MIN; nvx = 24'sd0; end
         else if (npx > X_MAX) begin npx = X_MAX; nvx = 24'sd0; end
 
@@ -182,8 +183,9 @@ always @(posedge clk) begin
         nvy = act_y ? (vel_y + acc_y) : fric(vel_y);
 //        if      (nvy >  vlim) nvy =  vlim;
 //        else if (nvy < -vlim) nvy = -vlim;
+        if (hit && ((dy > 0 && nvy > 0) || (dy < 0 && nvy < 0))) begin nvy = -(nvy >>> 1); end
         npy = pos_y + nvy;
-        if (d2 <= R_SQ) begin vel_y = -vel_y;  acc_y = -acc_y; end
+
         if      (npy < Y_MIN) begin npy = Y_MIN; nvy = 24'sd0; end
         else if (npy > Y_MAX) begin npy = Y_MAX; nvy = 24'sd0; end
 
