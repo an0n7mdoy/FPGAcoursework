@@ -129,8 +129,8 @@ wire signed [10:0] acc_y_lin = shp_y <<< 1;
 wire signed [22:0] acc_x_dg  = acc_x_lin * 12'sd181;
 wire signed [22:0] acc_y_dg  = acc_y_lin * 12'sd181;
 
-wire signed [10:0] acc_x = diag ? (acc_x_dg >>> 8) : acc_x_lin;
-wire signed [10:0] acc_y = diag ? (acc_y_dg >>> 8) : acc_y_lin;
+reg signed [10:0] acc_x = diag ? (acc_x_dg >>> 8) : acc_x_lin;
+reg signed [10:0] acc_y = diag ? (acc_y_dg >>> 8) : acc_y_lin;
 
 //------------------------------------------------------------------
 // Physics constants (1.0 px = 256)
@@ -174,7 +174,7 @@ always @(posedge clk) begin
 //        else if (nvx < -vlim) nvx = -vlim;
         npx = pos_x + nvx;
       
-        if (d2 <= R_SQ) begin nvx = -nvx; end
+        if (d2 <= R_SQ) begin vel_x = -vel_x;  acc_x = -acc_x; end
         if      (npx < X_MIN) begin npx = X_MIN; nvx = 24'sd0; end
         else if (npx > X_MAX) begin npx = X_MAX; nvx = 24'sd0; end
 
@@ -183,7 +183,7 @@ always @(posedge clk) begin
 //        if      (nvy >  vlim) nvy =  vlim;
 //        else if (nvy < -vlim) nvy = -vlim;
         npy = pos_y + nvy;
-        if (d2 <= R_SQ) begin nvy = -nvy; end
+        if (d2 <= R_SQ) begin vel_y = -vel_y;  acc_y = -acc_y; end
         if      (npy < Y_MIN) begin npy = Y_MIN; nvy = 24'sd0; end
         else if (npy > Y_MAX) begin npy = Y_MAX; nvy = 24'sd0; end
 
