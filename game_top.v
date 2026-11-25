@@ -174,8 +174,8 @@ always @(posedge clk) begin
         nvx = act_x ? (vel_x + acc_x) : fric(vel_x);
 //        if      (nvx >  vlim) nvx =  vlim;
 //        else if (nvx < -vlim) nvx = -vlim;
-        if (hit && ((dx > 0 && nvx > 0) || (dx < 0 && nvx < 0))) begin 
-            nvx = nvx - twovel_x; 
+        if (hit && ((dx > 0 && nvx > twovel_x) || (dx < 0 && nvx < twovel_x))) begin 
+            nvx = (nvx + twovel_x + (twovel_x <<< 1)) >>> 2;       // bounciness 0.5: (v_me + 3·v_them)/4 
         end
         npx = pos_x + nvx;
 
@@ -186,8 +186,8 @@ always @(posedge clk) begin
         nvy = act_y ? (vel_y + acc_y) : fric(vel_y);
 //        if      (nvy >  vlim) nvy =  vlim;
 //        else if (nvy < -vlim) nvy = -vlim;
-        if (hit && ((dy > 0 && nvy > 0) || (dy < 0 && nvy < 0))) begin 
-            nvy = nvy - twovel_y;  
+        if (hit && ((dy > 0 && nvy > twovel_y) || (dy < 0 && nvy < twovel_y))) begin 
+            nvy = (nvy + twovel_y + (twovel_y <<< 1)) >>> 2;       // bounciness 0.5: (v_me + 3·v_them)/4 
         end
         npy = pos_y + nvy;
 
@@ -202,8 +202,6 @@ end
 // integer part of the position goes to the renderer
 assign blkpos_x = pos_x[18:8];
 assign blkpos_y = pos_y[18:8];
-assign blkvel_x = vel_x;
-assign blkvel_y = vel_y;
 
 drawcon drawcon_inst(
     .player(player),
