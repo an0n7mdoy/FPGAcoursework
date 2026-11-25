@@ -55,13 +55,24 @@ end
 wire [11:0] my_colour    = player ? 12'h9F9 : 12'hF9F;
 wire [11:0] their_colour = player ? 12'hF9F : 12'h9F9;
 
-// block colour, 50x50: my square is drawn on top of theirs
+// marble radius = 24 px (radius squared = 576)
+localparam signed [23:0] R_SQ = 24'sd576;
+
+// offset of the current pixel from each marble's centre
+wire signed [11:0] my_dx  = $signed({1'b0, curr_x}) - $signed({1'b0, blkpos_x});
+wire signed [11:0] my_dy  = $signed({1'b0, curr_y}) - $signed({1'b0, blkpos_y});
+wire signed [11:0] two_dx = $signed({1'b0, curr_x}) - $signed({1'b0, twopos_x});
+wire signed [11:0] two_dy = $signed({1'b0, curr_y}) - $signed({1'b0, twopos_y});
+
+// squared distance from each centre
+wire signed [23:0] my_d2  = my_dx*my_dx   + my_dy*my_dy;
+wire signed [23:0] two_d2 = two_dx*two_dx + two_dy*two_dy;
+
+// marble colour: circles centred on blkpos / twopos, mine drawn on top of theirs
 always@* begin
-    if ((curr_x >= blkpos_x) && (curr_x <= blkpos_x+50) &&
-        (curr_y >= blkpos_y) && (curr_y <= blkpos_y+50)) begin
+    if (my_d2 <= R_SQ) begin
         {blk_r, blk_g, blk_b} = my_colour;
-    end else if ((curr_x >= twopos_x) && (curr_x <= twopos_x+50) &&
-                 (curr_y >= twopos_y) && (curr_y <= twopos_y+50)) begin
+    end else if (two_d2 <= R_SQ) begin
         {blk_r, blk_g, blk_b} = their_colour;
     end else begin
         {blk_r, blk_g, blk_b} = 12'h000;
