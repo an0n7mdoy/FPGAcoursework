@@ -24,7 +24,9 @@ module game_top #(
     input player,
     input [4:0] btn,
     input [10:0] twopos_x, twopos_y,
+    input signed [23:0] twovel_x, twovel_y,
     output [10:0] blkpos_x, blkpos_y,
+    output reg signed [23:0] vel_x, vel_y,
     output [3:0] pix_r,
     output [3:0] pix_g,
     output [3:0] pix_b,
@@ -152,7 +154,6 @@ function signed [23:0] fric;
 endfunction
 
 reg signed [23:0] pos_x, pos_y;
-reg signed [23:0] vel_x, vel_y;
 reg signed [23:0] nvx, nvy, npx, npy;
 wire signed [11:0] dx  = $signed({1'b0, twopos_x}) - $signed({1'b0, blkpos_x});
 wire signed [11:0] dy  = $signed({1'b0, twopos_y}) - $signed({1'b0, blkpos_y});
@@ -173,7 +174,9 @@ always @(posedge clk) begin
         nvx = act_x ? (vel_x + acc_x) : fric(vel_x);
 //        if      (nvx >  vlim) nvx =  vlim;
 //        else if (nvx < -vlim) nvx = -vlim;
-        if (hit && ((dx > 0 && nvx > 0) || (dx < 0 && nvx < 0))) begin nvx = -(nvx >>> 1); end
+        if (hit && ((dx > 0 && nvx > 0) || (dx < 0 && nvx < 0))) begin 
+            nvx = nvx - twovel_x; 
+        end
         npx = pos_x + nvx;
 
         if      (npx < X_MIN) begin npx = X_MIN; nvx = 24'sd0; end
@@ -183,7 +186,9 @@ always @(posedge clk) begin
         nvy = act_y ? (vel_y + acc_y) : fric(vel_y);
 //        if      (nvy >  vlim) nvy =  vlim;
 //        else if (nvy < -vlim) nvy = -vlim;
-        if (hit && ((dy > 0 && nvy > 0) || (dy < 0 && nvy < 0))) begin nvy = -(nvy >>> 1); end
+        if (hit && ((dy > 0 && nvy > 0) || (dy < 0 && nvy < 0))) begin 
+            nvy = nvy - twovel_y;  
+        end
         npy = pos_y + nvy;
 
         if      (npy < Y_MIN) begin npy = Y_MIN; nvy = 24'sd0; end
@@ -197,6 +202,8 @@ end
 // integer part of the position goes to the renderer
 assign blkpos_x = pos_x[18:8];
 assign blkpos_y = pos_y[18:8];
+assign blkvel_x = vel_x;
+assign blkvel_y = vel_y;
 
 drawcon drawcon_inst(
     .player(player),
