@@ -198,7 +198,7 @@ always @(posedge clk) begin
         pos_x <= npx;  pos_y <= npy;
     end
 end
-//hello
+
 // integer part of the position goes to the renderer
 assign blkpos_x = pos_x[18:8];
 assign blkpos_y = pos_y[18:8];
