@@ -135,12 +135,12 @@ wire signed [10:0] acc_y = diag ? (acc_y_dg >>> 8) : acc_y_lin;
 //------------------------------------------------------------------
 // Physics constants (1.0 px = 256)
 //------------------------------------------------------------------
-//localparam signed [23:0] VMAX   = 24'sd819;     // 3.2 px/frame
-//localparam signed [23:0] VMAX_D = 24'sd579;     // 3.2 * 181/256 per axis on diagonals
-localparam signed [23:0] X_MIN  = 24'sd2560;    // 10 px
-localparam signed [23:0] X_MAX  = 24'sd353280;  // 1380 px
-localparam signed [23:0] Y_MIN  = 24'sd2560;    // 10 px
-localparam signed [23:0] Y_MAX  = 24'sd215040;  // 840 px
+//localparam signed [23:0] VMAX   = 24'sd819;   // 3.2 px/frame
+//localparam signed [23:0] VMAX_D = 24'sd579;   // 3.2 * 181/256 per axis on diagonals
+localparam signed [23:0] X_MIN  = 24'sd8704;    // 10+24 px
+localparam signed [23:0] X_MAX  = 24'sd359936;  // 1430-24 px
+localparam signed [23:0] Y_MIN  = 24'sd8704;    // 10+24 px
+localparam signed [23:0] Y_MAX  = 24'sd221696;  // 890-24 px
 
 // friction ~0.94 (15/16 = 0.9375); snap to zero at very low speed
 function signed [23:0] fric;
@@ -154,10 +154,10 @@ endfunction
 reg signed [23:0] pos_x, pos_y;
 reg signed [23:0] vel_x, vel_y;
 reg signed [23:0] nvx, nvy, npx, npy;
-wire signed [23:0] opp_x = {5'd0, twopos_x, 8'd0};
-wire signed [23:0] opp_y = {5'd0, twopos_y, 8'd0};
-localparam signed [23:0] BLK = 24'sd13056;    // 51 × 256
-
+wire signed [11:0] dx  = $signed({1'b0, twopos_x}) - $signed({1'b0, blkpos_x});
+wire signed [11:0] dy  = $signed({1'b0, twopos_y}) - $signed({1'b0, blkpos_y});
+localparam signed [23:0] R_SQ = 24'sd2304; //48^2
+wire signed [23:0] d2  = dx*dx + dy*dy;
 always @(posedge clk) begin
     if (!rst || btn[0]) begin
         pos_x <= player ? 24'sd330240 : 24'sd25600;   // 1290 / 100 px
@@ -173,12 +173,8 @@ always @(posedge clk) begin
 //        if      (nvx >  vlim) nvx =  vlim;
 //        else if (nvx < -vlim) nvx = -vlim;
         npx = pos_x + nvx;
-        
-        if (npx < opp_x + BLK && npx + BLK > opp_x &&
-            pos_y < opp_y + BLK && pos_y + BLK > opp_y) begin
-            npx = (pos_x < opp_x) ? opp_x - BLK : opp_x + BLK;   // push out to the side we came from
-            nvx = 24'sd0;                                         // or -(nvx >>> 1) for a bounce
-        end
+      
+        if (d2 <= R_SQ) begin nvx = -nvx; end
         if      (npx < X_MIN) begin npx = X_MIN; nvx = 24'sd0; end
         else if (npx > X_MAX) begin npx = X_MAX; nvx = 24'sd0; end
 
@@ -187,11 +183,7 @@ always @(posedge clk) begin
 //        if      (nvy >  vlim) nvy =  vlim;
 //        else if (nvy < -vlim) nvy = -vlim;
         npy = pos_y + nvy;
-        if (npx < opp_x + BLK && npx + BLK > opp_x &&
-            npy < opp_y + BLK && npy + BLK > opp_y) begin
-            npy = (pos_y < opp_y) ? opp_y - BLK : opp_y + BLK;
-            nvy = 24'sd0;
-        end
+        if (d2 <= R_SQ) begin nvy = -nvy; end
         if      (npy < Y_MIN) begin npy = Y_MIN; nvy = 24'sd0; end
         else if (npy > Y_MAX) begin npy = Y_MAX; nvy = 24'sd0; end
 
