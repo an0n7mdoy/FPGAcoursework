@@ -154,6 +154,9 @@ endfunction
 reg signed [23:0] pos_x, pos_y;
 reg signed [23:0] vel_x, vel_y;
 reg signed [23:0] nvx, nvy, npx, npy;
+wire signed [23:0] opp_x = {5'd0, twopos_x, 8'd0};
+wire signed [23:0] opp_y = {5'd0, twopos_y, 8'd0};
+localparam signed [23:0] BLK = 24'sd13056;    // 51 × 256
 
 always @(posedge clk) begin
     if (!rst || btn[0]) begin
@@ -162,6 +165,7 @@ always @(posedge clk) begin
         vel_x <= 24'sd0;
         vel_y <= 24'sd0;
     end else if (tick) begin
+
 //        vlim = diag ? VMAX_D : VMAX;
 
         // ---- X axis ----
@@ -169,6 +173,12 @@ always @(posedge clk) begin
 //        if      (nvx >  vlim) nvx =  vlim;
 //        else if (nvx < -vlim) nvx = -vlim;
         npx = pos_x + nvx;
+        
+        if (npx < opp_x + BLK && npx + BLK > opp_x &&
+            pos_y < opp_y + BLK && pos_y + BLK > opp_y) begin
+            npx = (pos_x < opp_x) ? opp_x - BLK : opp_x + BLK;   // push out to the side we came from
+            nvx = 24'sd0;                                         // or -(nvx >>> 1) for a bounce
+        end
         if      (npx < X_MIN) begin npx = X_MIN; nvx = 24'sd0; end
         else if (npx > X_MAX) begin npx = X_MAX; nvx = 24'sd0; end
 
@@ -177,6 +187,11 @@ always @(posedge clk) begin
 //        if      (nvy >  vlim) nvy =  vlim;
 //        else if (nvy < -vlim) nvy = -vlim;
         npy = pos_y + nvy;
+        if (npx < opp_x + BLK && npx + BLK > opp_x &&
+            npy < opp_y + BLK && npy + BLK > opp_y) begin
+            npy = (pos_y < opp_y) ? opp_y - BLK : opp_y + BLK;
+            nvy = 24'sd0;
+        end
         if      (npy < Y_MIN) begin npy = Y_MIN; nvy = 24'sd0; end
         else if (npy > Y_MAX) begin npy = Y_MAX; nvy = 24'sd0; end
 
