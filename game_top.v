@@ -175,7 +175,8 @@ always @(posedge clk) begin
 //        if      (nvx >  vlim) nvx =  vlim;
 //        else if (nvx < -vlim) nvx = -vlim;
         if (hit && ((dx > 0 && nvx > twovel_x) || (dx < 0 && nvx < twovel_x))) begin 
-            nvx = (nvx + twovel_x + (twovel_x <<< 1)) >>> 2;       // bounciness 0.5: (v_me + 3·v_them)/4 
+            // bounciness e = 0.5: v₁′ = [ (1 − e)·v₁ + (1 + e)·v₂ ] / 2 = (v_me + 3·v_them)/4 
+            nvx = (nvx + twovel_x + (twovel_x <<< 1)) >>> 2;       
         end
         npx = pos_x + nvx;
 
@@ -187,7 +188,8 @@ always @(posedge clk) begin
 //        if      (nvy >  vlim) nvy =  vlim;
 //        else if (nvy < -vlim) nvy = -vlim;
         if (hit && ((dy > 0 && nvy > twovel_y) || (dy < 0 && nvy < twovel_y))) begin 
-            nvy = (nvy + twovel_y + (twovel_y <<< 1)) >>> 2;       // bounciness 0.5: (v_me + 3·v_them)/4 
+            // bounciness e = 0.5: v₁′ = [ (1 − e)·v₁ + (1 + e)·v₂ ] / 2 = (v_me + 3·v_them)/4 
+            nvy = (nvy + twovel_y + (twovel_y <<< 1)) >>> 2;
         end
         npy = pos_y + nvy;
 
