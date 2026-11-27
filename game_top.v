@@ -184,7 +184,7 @@ always @(posedge clk) begin
             // bounciness e = 0.5: v₁′ = [ (1 - e)·v₁ + (1 + e)·v₂ ] / 2 = (v_me + 3·v_them)/4 
            // nvx = (nvx + twovel_x + (twovel_x <<< 1)) >>> 2;       
             //fully elastic
-            nvx = (twovel_x);
+            nvx = (nvx + (twovel_x <<< 3) - twovel_x) >>> 3;
         end
         npx = pos_x + nvx;
 
@@ -201,7 +201,7 @@ always @(posedge clk) begin
             // bounciness e = 0.5: v₁′ = [ (1 - e)·v₁ + (1 + e)·v₂ ] / 2 = (v_me + 3·v_them)/4 
             //nvy = (nvy + twovel_y + (twovel_y <<< 1)) >>> 2;
             //fully elastic
-            nvy = (twovel_y);
+            nvy = (nvy + (twovel_y <<< 3) - twovel_y) >>> 3;
         end
         npy = pos_y + nvy;
 
