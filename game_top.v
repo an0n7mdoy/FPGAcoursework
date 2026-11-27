@@ -23,10 +23,12 @@ module game_top #(
     input rst,                  // active low
     input player,
     input [4:0] btn,
+    input twohit,
     input [10:0] twopos_x, twopos_y,
     input signed [23:0] twovel_x, twovel_y,
     output [10:0] blkpos_x, blkpos_y,
     output reg signed [23:0] fvel_x, fvel_y,
+    output reg blkhit,
     output [3:0] pix_r,
     output [3:0] pix_g,
     output [3:0] pix_b,
@@ -161,6 +163,7 @@ wire signed [11:0] dy  = $signed({1'b0, twopos_y}) - $signed({1'b0, blkpos_y});
 localparam signed [23:0] R_SQ = 24'sd2500; //50^2
 wire signed [23:0] d2  = dx*dx + dy*dy;
 wire hit = (d2 <= R_SQ);
+wire hit_any = hit || twohit;
 always @(posedge clk) begin
     if (!rst || btn[0]) begin
         pos_x <= player ? 24'sd330240 : 24'sd25600;   // 1290 / 100 px
@@ -172,11 +175,12 @@ always @(posedge clk) begin
 //        vlim = diag ? VMAX_D : VMAX;
 
         // ---- X axis ----
-        nvx = act_x ? (vel_x + acc_x) : fric(vel_x);
         fvx = nvx;
+        nvx = act_x ? (vel_x + acc_x) : fric(vel_x);
+        
 //        if      (nvx >  vlim) nvx =  vlim;
 //        else if (nvx < -vlim) nvx = -vlim;
-        if (hit && ((dx >= 0 && nvx > twovel_x) || (dx <= 0 && nvx < twovel_x))) begin 
+        if (hit_any && ((dx >= 0 && nvx > twovel_x) || (dx <= 0 && nvx < twovel_x))) begin 
             // bounciness e = 0.5: v₁′ = [ (1 - e)·v₁ + (1 + e)·v₂ ] / 2 = (v_me + 3·v_them)/4 
            // nvx = (nvx + twovel_x + (twovel_x <<< 1)) >>> 2;       
             //fully elastic
@@ -188,11 +192,12 @@ always @(posedge clk) begin
         else if (npx > X_MAX) begin npx = X_MAX; nvx = 24'sd0; end
 
         // ---- Y axis ----
-        nvy = act_y ? (vel_y + acc_y) : fric(vel_y);
         fvy = nvy;
+        nvy = act_y ? (vel_y + acc_y) : fric(vel_y);
+        
 //        if      (nvy >  vlim) nvy =  vlim;
 //        else if (nvy < -vlim) nvy = -vlim;
-        if (hit && ((dy >= 0 && nvy > twovel_y) || (dy <= 0 && nvy < twovel_y))) begin 
+        if (hit_any && ((dy >= 0 && nvy > twovel_y) || (dy <= 0 && nvy < twovel_y))) begin 
             // bounciness e = 0.5: v₁′ = [ (1 - e)·v₁ + (1 + e)·v₂ ] / 2 = (v_me + 3·v_them)/4 
             //nvy = (nvy + twovel_y + (twovel_y <<< 1)) >>> 2;
             //fully elastic
@@ -206,6 +211,7 @@ always @(posedge clk) begin
         fvel_x <= fvx; fvel_y <= fvy;
         vel_x  <= nvx; vel_y  <= nvy;
         pos_x  <= npx; pos_y  <= npy;
+        blkhit <= hit;
     end
 end
 

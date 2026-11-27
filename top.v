@@ -40,6 +40,8 @@ module top (
     wire [21:0] blkpos;
     reg signed [23:0] twovel_x, twovel_y;
     wire signed [23:0] blkvel_x, blkvel_y;
+    reg twohit;
+    wire blkhit;
     // Hold the PHY in reset until the clocks are stable, then 1 ms more.
     // ETH_RSTN also acts as the reset for this whole design: TX/RX flush any
     // junk state from before 'locked' within ~1000 clocks, well inside that 1 ms.
@@ -71,7 +73,7 @@ module top (
     rmii_tx tx (
         .clk     (clk),
         .start   (ETH_RSTN && timer == 0),
-        .payload ({298'd0, blkvel_x, blkvel_y, blkpos}),           // 298 0s, [69:46] velx, [45:22] vely, [21:0] pos
+        .payload ({297'd0, blkhit, blkvel_x, blkvel_y, blkpos}),           // 298 0s, [69:46] velx, [45:22] vely, [21:0] pos
         .tx_en   (ETH_TXEN),
         .txd     (ETH_TXD),
         .busy    ()
@@ -96,6 +98,7 @@ module top (
             bad_count  <= 0;
         end else begin
             if (ok) begin
+                twohit     <= rx_payload[70];
                 twovel_x   <= rx_payload[69:46];
                 twovel_y   <= rx_payload[45:22];
                 twopos     <= rx_payload[21:0];
@@ -112,6 +115,7 @@ module top (
         .rst(rst),
         .player(player),
         .btn(bt2),
+        .blkhit(blkhit),
         .twopos_x(twopos[21:11]),
         .twopos_y(twopos[10:0]),
         .twovel_x(twovel_x),
@@ -123,6 +127,7 @@ module top (
         .blkpos_y(blkpos[10:0]),
         .fvel_x(blkvel_x),
         .fvel_y(blkvel_y),
+        .twohit(twohit),
         .hsync(hsync), .vsync(vsync),
         .ACL_MISO(ACL_MISO),
         .ACL_MOSI(ACL_MOSI),
