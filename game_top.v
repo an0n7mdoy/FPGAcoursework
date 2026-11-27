@@ -157,7 +157,7 @@ reg signed [23:0] pos_x, pos_y;
 reg signed [23:0] nvx, nvy, npx, npy;
 wire signed [11:0] dx  = $signed({1'b0, twopos_x}) - $signed({1'b0, blkpos_x});
 wire signed [11:0] dy  = $signed({1'b0, twopos_y}) - $signed({1'b0, blkpos_y});
-localparam signed [23:0] R_SQ = 24'sd2304; //48^2
+localparam signed [23:0] R_SQ = 24'sd2500; //50^2
 wire signed [23:0] d2  = dx*dx + dy*dy;
 wire hit = (d2 <= R_SQ);
 always @(posedge clk) begin
@@ -176,7 +176,9 @@ always @(posedge clk) begin
 //        else if (nvx < -vlim) nvx = -vlim;
         if (hit && ((dx > 0 && nvx > twovel_x) || (dx < 0 && nvx < twovel_x))) begin 
             // bounciness e = 0.5: v₁′ = [ (1 − e)·v₁ + (1 + e)·v₂ ] / 2 = (v_me + 3·v_them)/4 
-            nvx = (nvx + twovel_x + (twovel_x <<< 1)) >>> 2;       
+           // nvx = (nvx + twovel_x + (twovel_x <<< 1)) >>> 2;       
+            //fully elastic
+            nvx = twovel_x;
         end
         npx = pos_x + nvx;
 
@@ -189,7 +191,9 @@ always @(posedge clk) begin
 //        else if (nvy < -vlim) nvy = -vlim;
         if (hit && ((dy > 0 && nvy > twovel_y) || (dy < 0 && nvy < twovel_y))) begin 
             // bounciness e = 0.5: v₁′ = [ (1 − e)·v₁ + (1 + e)·v₂ ] / 2 = (v_me + 3·v_them)/4 
-            nvy = (nvy + twovel_y + (twovel_y <<< 1)) >>> 2;
+            //nvy = (nvy + twovel_y + (twovel_y <<< 1)) >>> 2;
+            //fully elastic
+            nvy = twovel_y;
         end
         npy = pos_y + nvy;
 
