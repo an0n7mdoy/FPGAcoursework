@@ -177,7 +177,7 @@ always @(posedge clk) begin
 //        if      (nvx >  vlim) nvx =  vlim;
 //        else if (nvx < -vlim) nvx = -vlim;
         if (hit && ((dx >= 0 && nvx > twovel_x) || (dx <= 0 && nvx < twovel_x))) begin 
-            // bounciness e = 0.5: v₁′ = [ (1 − e)·v₁ + (1 + e)·v₂ ] / 2 = (v_me + 3·v_them)/4 
+            // bounciness e = 0.5: v₁′ = [ (1 - e)·v₁ + (1 + e)·v₂ ] / 2 = (v_me + 3·v_them)/4 
            // nvx = (nvx + twovel_x + (twovel_x <<< 1)) >>> 2;       
             //fully elastic
             nvx = (twovel_x);
@@ -193,7 +193,7 @@ always @(posedge clk) begin
 //        if      (nvy >  vlim) nvy =  vlim;
 //        else if (nvy < -vlim) nvy = -vlim;
         if (hit && ((dy >= 0 && nvy > twovel_y) || (dy <= 0 && nvy < twovel_y))) begin 
-            // bounciness e = 0.5: v₁′ = [ (1 − e)·v₁ + (1 + e)·v₂ ] / 2 = (v_me + 3·v_them)/4 
+            // bounciness e = 0.5: v₁′ = [ (1 - e)·v₁ + (1 + e)·v₂ ] / 2 = (v_me + 3·v_them)/4 
             //nvy = (nvy + twovel_y + (twovel_y <<< 1)) >>> 2;
             //fully elastic
             nvy = (twovel_y);
@@ -214,6 +214,7 @@ assign blkpos_x = pos_x[18:8];
 assign blkpos_y = pos_y[18:8];
 
 drawcon drawcon_inst(
+    .pixclk(pixclk),
     .player(player),
     .blkpos_x(blkpos_x),
     .blkpos_y(blkpos_y),
